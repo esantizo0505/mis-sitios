@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tareas por Usuario</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="password"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #task-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .task-item {
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-text {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .task-date {
+            font-size: 12px;
+            color: #777;
+        }
+        .delete-task {
+            background-color: #ff4d4d;
+            padding: 5px 10px;
+        }
+        #logout {
+            background-color: #f44336;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <!-- El contenido se cargará dinámicamente aquí -->
+    </div>
+
+    <script>
+        const app = document.getElementById('app');
+        let currentUser = null;
+        let users = JSON.parse(localStorage.getItem('users')) || {};
+
+        function showLoginForm() {
+            app.innerHTML = `
+                <h1>Iniciar Sesión</h1>
+                <form id="login-form">
+                    <input type="text" id="username" placeholder="Nombre de usuario" required>
+                    <input type="password" id="password" placeholder="Contraseña" required>
+                    <button type="submit">Iniciar Sesión</button>
+                </form>
+                <p>¿No tienes una cuenta? <a href="#" id="show-register">Regístrate</a></p>
+            `;
+
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+            document.getElementById('show-register').addEventListener('click', showRegisterForm);
+        }
+
+        function showRegisterForm() {
+            app.innerHTML = `
+                <h1>Registro</h1>
+                <form id="register-form">
+                    <input type="text" id="new-username" placeholder="Nombre de usuario" required>
+                    <input type="password" id="new-password" placeholder="Contraseña" required>
+                    <button type="submit">Registrarse</button>
+                </form>
+                <p>¿Ya tienes una cuenta? <a href="#" id="show-login">Inicia sesión</a></p>
+            `;
+
+            document.getElementById('register-form').addEventListener('submit', handleRegister);
+            document.getElementById('show-login').addEventListener('click', showLoginForm);
+        }
+
+        function showTaskList() {
+            app.innerHTML = `
+                <h1>Lista de Tareas de ${currentUser}</h1>
+                <form id="task-form">
+                    <input type="text" id="task-input" placeholder="Añadir nueva tarea..." required>
+                    <button type="submit">Añadir</button>
+                </form>
+                <ul id="task-list"></ul>
+                <button id="logout">Cerrar Sesión</button>
+            `;
+
+            document.getElementById('task-form').addEventListener('submit', handleAddTask);
+            document.getElementById('logout').addEventListener('click', handleLogout);
+            renderTasks();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (users[username] && users[username].password === password) {
+                currentUser = username;
+                showTaskList();
+            } else {
+                alert('Usuario o contraseña incorrectos');
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+
+            if (users[username]) {
+                alert('El nombre de usuario ya existe');
+            } else {
+                users[username] = { password, tasks: [] };
+                localStorage.setItem('users', JSON.stringify(users));
+                currentUser = username;
+                showTaskList();
+            }
+        }
+
+        function handleAddTask(e) {
+            e.preventDefault();
+            const taskInput = document.getElementById('task-input');
+            const taskText = taskInput.value.trim();
+            if (taskText) {
+                const now = new Date();
+                const taskDate = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+                users[currentUser].tasks.push({ text: taskText, date: taskDate });
+                localStorage.setItem('users', JSON.stringify(users));
+                taskInput.value = '';
+                renderTasks();
+            }
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = '';
+            users[currentUser].tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+                li.innerHTML = `
+                    <span class="task-text">${task.text}</span>
+                    <span class="task-date">${task.date}</span>
+                    <button class="delete-task" data-index="${index}">Eliminar</button>
+                `;
+                taskList.appendChild(li);
+            });
+
+            document.querySelectorAll('.delete-task').forEach(button => {
+                button.addEventListener('click', handleDeleteTask);
+            });
+        }
+
+        function handleDeleteTask(e) {
+            const index = e.target.getAttribute('data-index');
+            users[currentUser].tasks.splice(index, 1);
+            localStorage.setItem('users', JSON.stringify(users));
+            renderTasks();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            showLoginForm();
+        }
+
+        // Iniciar la aplicación
+        showLoginForm();
+    </script>
+</body>
+</html>
